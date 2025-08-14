@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lucero - Escena 5</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        h1 {
+            color: #0056b3;
+            font-size: 30px;
+            font-weight: bold;
+        }
+        .logo {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            max-width: 100px;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #0056b3;
+            color: white;
+            font-weight: bold;
+        }
+        tr {
+            background-color: #ffffff;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        td {
+            font-size: 14px;
+        }
+        .filters {
+            margin: 15px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        .filters input, .filters select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .toggle {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Logo en la esquina superior izquierda -->
+    <img src="https://static.wixstatic.com/media/85afce_3adb3865c88a492b93a8bf2dc69049c3~mv2.png" alt="Logo Musicala" class="logo">
+
+    <div class="container">
+        <h1 id="tituloPrincipal">Lucero - Escena 5</h1>
+        <p id="subtitulo">Teatro</p>
+
+        <!-- Filtros -->
+        <div class="filters">
+            <input type="text" id="fNombre" placeholder="Buscar nombre...">
+            <select id="fCiclo"><option value="">Todos los ciclos</option></select>
+            <select id="fJornada"><option value="">Todas las jornadas</option></select>
+            <div class="toggle">
+                <input type="checkbox" id="fOrquesta">
+                <label for="fOrquesta">Solo Orquesta = Sí</label>
+            </div>
+        </div>
+
+        <table id="tablaEscena">
+            <thead><tr></tr></thead>
+            <tbody></tbody>
+        </table>
+
+        <p class="copyright">© 2025 Musicala. Todos los derechos de uso son propiedad de Musicala.</p>
+    </div>
+
+    <script>
+    $(document).ready(function() {
+        const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTXKSxOP6nT-58TiSY3PpsuIxVn0lQWEIKvT7lsuRQdWrll5DpF5xsoPMr8JWjEGfqjjx_sjB1ZuBDe/pub?gid=1755941378&single=true&output=tsv";
+
+        let table;
+        let colIdx = {};
+        const setCiclo = new Set();
+        const setJornada = new Set();
+
+        fetch(sheetURL)
+            .then(r => r.text())
+            .then(tsv => {
+                const lines = tsv.replace(/\r/g, "").split("\n").filter(l => l.trim() !== "");
+                if (lines.length < 4) return;
+
+                $("#tituloPrincipal").text(lines[0].split("\t")[0] || "Lucero - Escena 5");
+                $("#subtitulo").text(lines[1].split("\t")[0] || "Teatro");
+
+                const headers = lines[2].split("\t").map(h => h.trim());
+                const thead = $("#tablaEscena thead tr");
+                headers.forEach(h => thead.append(`<th>${h}</th>`));
+
+                const lower = headers.map(h => h.toLowerCase());
+                colIdx.nombre   = lower.indexOf("nombre");
+                colIdx.ciclo    = lower.indexOf("ciclo");
+                colIdx.jornada  = lower.indexOf("jornada");
+                colIdx.orquesta = lower.indexOf("orquesta");
+
+                const tbody = $("#tablaEscena tbody");
+                for (let i = 3; i < lines.length; i++) {
+                    const row = lines[i].split("\t");
+                    if (row.every(c => (c || "").trim() === "")) continue;
+
+                    if (colIdx.orquesta >= 0) {
+                        const v = (row[colIdx.orquesta] || "").trim().toLowerCase();
+                        row[colIdx.orquesta] = v === "true" ? "Sí" : v === "false" ? "No" : row[colIdx.orquesta];
+                    }
+
+                    if (colIdx.ciclo >= 0) setCiclo.add((row[colIdx.ciclo] || "").trim());
+                    if (colIdx.jornada >= 0) setJornada.add((row[colIdx.jornada] || "").trim());
+
+                    const tds = row.map(v => `<td>${(v || "").trim()}</td>`).join("");
+                    tbody.append(`<tr>${tds}</tr>`);
+                }
+
+                [...setCiclo].filter(v => v).sort().forEach(v => $("#fCiclo").append(`<option value="${v}">${v}</option>`));
+                [...setJornada].filter(v => v).sort().forEach(v => $("#fJornada").append(`<option value="${v}">${v}</option>`));
+
+                table = $("#tablaEscena").DataTable({
+                    pageLength: 10,
+                    language: { url: "https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json" }
+                });
+
+                $("#fNombre").on("input", function(){
+                    if (colIdx.nombre >= 0) table.column(colIdx.nombre).search(this.value).draw();
+                });
+
+                $("#fCiclo").on("change", function(){
+                    if (colIdx.ciclo >= 0) {
+                        const val = this.value ? `^${escapeRegex(this.value)}$` : "";
+                        table.column(colIdx.ciclo).search(val, true, false).draw();
+                    }
+                });
+
+                $("#fJornada").on("change", function(){
+                    if (colIdx.jornada >= 0) {
+                        const val = this.value ? `^${escapeRegex(this.value)}$` : "";
+                        table.column(colIdx.jornada).search(val, true, false).draw();
+                    }
+                });
+
+                $("#fOrquesta").on("change", function(){
+                    if (colIdx.orquesta >= 0) {
+                        const val = this.checked ? "^Sí$" : "";
+                        table.column(colIdx.orquesta).search(val, true, false).draw();
+                    }
+                });
+            });
+
+        function escapeRegex(text){
+            return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        }
+    });
+    </script>
+</body>
+</html>
